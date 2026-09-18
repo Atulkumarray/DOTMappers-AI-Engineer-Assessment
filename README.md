@@ -1,42 +1,51 @@
 # DOTMappers AI Engineer Assessment — AI Support Ticket Analyst
 
-This project is my implementation of the DOTMappers AI Engineer assessment. It loads the supplied support-ticket CSV into SQLite, lets a user ask questions in normal language, detects ticket anomalies, and exposes the same functionality through a FastAPI REST API and a small web UI.
+This project is my implementation of the **DOTMappers AI Engineer Assessment — AI Support Ticket Analyst**.
 
-## Assessment requirements covered
+The application loads the supplied support-ticket CSV into SQLite, allows users to ask questions in natural language, converts questions into safe read-only SQL using a local LLM, detects resolution-time anomalies, identifies unresolved High/Critical tickets older than 24 hours, and exposes the functionality through a FastAPI REST API and a minimal web UI.
 
-- CSV ingestion and queryable storage
-- Natural-language questions using a local LLM (Ollama)
-- Read-only SQL generated from the question
-- Resolution-time anomaly detection using IQR
-- Unresolved High/Critical tickets older than 24 hours
-- Time-aware anomaly checks for all data, this week, and this month
-- REST API with health, NL query, and anomaly endpoints
-- Minimal server-rendered UI served by FastAPI (no JavaScript framework)
-- No paid API or external service is required
-- One command to start the application after setup
-- README and `requirements.txt`
+## Assessment Requirements Covered
 
-The assessment asks for Python, an LLM, zero-cost/local execution, a single start command, and documentation. This implementation uses Python/FastAPI for the application and a server-rendered HTML page for the UI, with no JavaScript framework or frontend build step.
+* CSV ingestion and queryable storage
+* Natural-language questions using a local LLM
+* Ollama-based local LLM execution
+* Read-only SQL generation and validation
+* Resolution-time anomaly detection using IQR
+* Detection of unresolved High/Critical tickets older than 24 hours
+* Time-aware anomaly detection for all data, this week, and this month
+* REST API with health, NL query, and anomaly endpoints
+* Minimal server-rendered HTML UI
+* No JavaScript framework or frontend build step
+* No paid API or external AI service required
+* SQLite database for simple local execution
+* One command to start the application
+* Automated tests
+* README and requirements.txt documentation
 
-## Project structure
+## Project Structure
 
 ```text
 .
 ├── app/
-│   ├── anomaly.py       # anomaly calculations and time windows
-│   ├── config.py        # paths and Ollama settings
-│   ├── db.py            # CSV -> SQLite ingestion
-│   ├── llm.py           # Ollama integration and prompt
+│   ├── anomaly.py       # Anomaly calculations and time windows
+│   ├── config.py        # Application and Ollama configuration
+│   ├── db.py            # CSV validation and SQLite ingestion
+│   ├── llm.py           # Ollama integration and LLM prompt
 │   ├── main.py          # FastAPI routes and web UI
-│   └── query.py         # SQL validation, execution, and fallback
+│   └── query.py         # SQL validation, execution and fallback
+│
 ├── data/
 │   └── support_tickets.csv
+│
 ├── static/
 │   └── style.css
+│
 ├── templates/
 │   └── index.html
+│
 ├── tests/
 │   └── test_api.py
+│
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -49,7 +58,7 @@ The assessment asks for Python, an LLM, zero-cost/local execution, a single star
 support_tickets.csv
         |
         v
-  CSV validation / ingestion
+ CSV validation / ingestion
         |
         v
       SQLite
@@ -61,204 +70,73 @@ support_tickets.csv
         |                         |
         v                         v
    Ollama LLM              Python anomaly logic
- NL question -> SQL         IQR + age rule
+        |                    IQR + age rule
+        v
+ NL question -> SQL
         |
         v
-  SQL safety checks
+ SQL safety validation
         |
         v
- SQLite read-only query
+ Read-only SQLite query
         |
         v
- JSON response / web page
+ JSON response / Web UI
 ```
 
-### Design choices
+## Technology Stack
 
-**SQLite:** The supplied dataset is only 500 rows, so SQLite keeps the project simple and avoids a separate database server.
+### Backend
 
-**Ollama:** It runs locally and does not need a paid API key. The default model is `llama3.2:3b`.
+* Python
+* FastAPI
+* Uvicorn
+* SQLite
 
-**LLM-to-SQL:** The LLM is used for natural-language understanding. It returns structured JSON containing SQL and an explanation. The generated SQL is checked before it reaches the database.
+### AI / LLM
 
-**Deterministic anomalies:** Statistical anomaly detection is handled in Python/SQLite rather than asking the LLM to decide whether a value is an anomaly. This makes the result repeatable.
+* Ollama
+* Default model: `llama3.2:3b`
 
-**FastAPI:** It provides the required REST endpoints and also serves the small UI, so the whole application starts with one command.
+### Data Processing
 
-## Dataset
+* CSV
+* SQLite
+* IQR-based anomaly detection
 
-The supplied CSV contains 500 rows and these columns:
+### Frontend
 
-- `ticket_id`
-- `created_at`
-- `category`
-- `priority`
-- `status`
-- `response_time_hrs`
-- `resolution_time_hrs`
-- `agent_id`
-- `customer_rating`
-- `issue_summary`
+* HTML
+* CSS
+* Server-rendered FastAPI templates
 
-`resolution_time_hrs` and `customer_rating` can be empty for unresolved tickets.
+### Testing
 
-On startup the CSV is validated and loaded into `data/support_tickets.db`. The database file is ignored by Git and can be recreated at any time.
+* Pytest
 
-## Setup
+## Design Decisions
 
-### 1. Create a virtual environment
+### SQLite
 
-Windows PowerShell:
+The supplied dataset contains only 500 tickets, so SQLite is sufficient and keeps the application lightweight. It also avoids requiring a separate database server.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
+### Ollama
 
-macOS/Linux:
+Ollama provides local LLM execution without requiring a paid API key or external AI service.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2b. (Optional) Configure environment variables
-
-Copy the example file if you want to override any default (Ollama URL/model, timeout):
-
-```bash
-cp .env.example .env
-```
-
-This step is optional — the app works with its built-in defaults even without a `.env` file.
-
-### 3. Install and start Ollama
-
-Install Ollama locally and make sure its service is running.
-
-Pull the default model:
-
-```bash
-ollama pull llama3.2:3b
-```
-
-If a different local model is preferred:
+The default model is:
 
 ```text
-OLLAMA_MODEL=<model-name>
+llama3.2:3b
 ```
 
-The default Ollama address is:
+The model can be changed using the `OLLAMA_MODEL` environment variable.
 
-```text
-http://localhost:11434
-```
+### LLM-to-SQL
 
-### 4. Start the application
+The LLM is responsible for understanding the user's natural-language question and generating SQL.
 
-From the repository root:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Open the UI at:
-
-```text
-http://127.0.0.1:8000
-```
-
-API documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-## REST API
-
-### Health check
-
-```http
-GET /api/health
-```
-
-Shows API status, dataset row count/date range, and Ollama availability.
-
-### Natural-language query
-
-```http
-POST /api/query
-Content-Type: application/json
-
-{
-  "question": "How many tickets are currently open?"
-}
-```
-
-The response contains the result rows, generated SQL, explanation, and whether the LLM was used.
-
-### Anomaly detection
-
-```http
-GET /api/anomalies
-GET /api/anomalies?period=week
-GET /api/anomalies?period=month
-```
-
-The endpoint returns:
-
-1. Resolution-time outliers using `Q3 + 1.5 * IQR`.
-2. Unresolved High/Critical tickets older than 24 hours.
-
-For `week` and `month`, the period is calculated relative to the latest timestamp in the supplied dataset. This avoids using the evaluator's current calendar date against a historical dataset.
-
-## Example questions
-
-The UI includes the assessment examples, including:
-
-```text
-How many tickets are currently open?
-Which agent resolved the most tickets this month?
-Show me all Critical tickets not resolved within 12 hours.
-What is the average customer rating for Technical category tickets?
-Are there any anomalies in resolution times this week?
-```
-
-Other questions the system can handle through the LLM include:
-
-```text
-How many Critical tickets are unresolved?
-Which agent has the lowest average customer rating?
-Show all Open Billing tickets.
-What is the average response time for High priority tickets?
-How many tickets were created in March 2024?
-```
-
-## Dataset validation values
-
-These values were calculated from the supplied CSV and can be used to check a local installation:
-
-| Check | Result |
-|---|---:|
-| Total tickets | 500 |
-| Currently Open | 111 |
-| Critical and not Resolved | 31 |
-| Average Technical customer rating | 3.74 |
-| Overall IQR resolution threshold | 48.15 hours |
-| Overall resolution-time outliers | 21 |
-| Most resolved tickets in March 2024 | AGT-01 (16) |
-
-The supplied dataset's latest ticket timestamp is in March 2024. Therefore, phrases such as "this month" and "this week" are interpreted relative to the dataset, not the real-world date on which the application is run.
-
-## LLM prompt and safety
-
-The LLM receives the database schema and the dataset's latest timestamp. It is instructed to return only JSON with:
+The expected LLM response is structured JSON:
 
 ```json
 {
@@ -267,82 +145,443 @@ The LLM receives the database schema and the dataset's latest timestamp. It is i
 }
 ```
 
-Before execution, the application rejects:
+The generated SQL is validated before execution.
 
-- empty SQL
-- multiple statements
-- write operations such as INSERT/UPDATE/DELETE
-- database administration commands
-- queries that do not start with SELECT or WITH
-- queries that do not reference `support_tickets`
+The LLM is not responsible for determining statistical anomalies. Anomaly detection is handled deterministically by Python/SQLite so that the results are repeatable.
 
-API queries use a read-only SQLite connection.
+### FastAPI
 
-If Ollama is unavailable, a small deterministic fallback is available for the assessment's common demonstration questions. This is only a resilience path; when Ollama is running, the normal natural-language query path uses the LLM.
+FastAPI provides both the REST API and the web interface. This keeps the entire application in one Python service and allows it to be started with a single command.
 
-## Running the sample walkthrough
+## Dataset
 
-After starting the application with Ollama running, test these assessment queries in the UI:
+The supplied CSV contains **500 support tickets** with the following columns:
 
-1. `How many tickets are currently open?`
-2. `Which agent resolved the most tickets this month?`
-3. `Show me all Critical tickets not resolved within 12 hours.`
-4. `What is the average customer rating for Technical category tickets?`
-5. `Are there any anomalies in resolution times this week?`
+* `ticket_id`
+* `created_at`
+* `category`
+* `priority`
+* `status`
+* `response_time_hrs`
+* `resolution_time_hrs`
+* `agent_id`
+* `customer_rating`
+* `issue_summary`
 
-The UI also exposes links to `/docs` and the anomaly periods `all`, `week`, and `month`.
+`resolution_time_hrs` and `customer_rating` can be empty for unresolved tickets.
+
+On application startup, the CSV is validated and loaded into:
+
+```text
+data/support_tickets.db
+```
+
+The SQLite database is ignored by Git and can be recreated from the CSV.
+
+## Setup
+
+### 1. Create a Virtual Environment
+
+#### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+#### macOS/Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment Variables
+
+Environment variables are optional.
+
+You can copy the example configuration:
+
+```bash
+cp .env.example .env
+```
+
+The application has built-in defaults, so the `.env` file is not required.
+
+Example:
+
+```text
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2:3b
+OLLAMA_TIMEOUT=60
+```
+
+### 4. Install Ollama
+
+Install Ollama locally and make sure the Ollama service is running.
+
+Pull the default model:
+
+```bash
+ollama pull llama3.2:3b
+```
+
+The default Ollama URL is:
+
+```text
+http://localhost:11434
+```
+
+### 5. Start the Application
+
+From the repository root:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Open the web application at:
+
+```text
+http://127.0.0.1:8000
+```
+
+FastAPI Swagger documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## REST API
+
+### Health Check
+
+```http
+GET /api/health
+```
+
+Returns:
+
+* API status
+* Dataset row count
+* Dataset date range
+* Ollama availability
+
+### Natural-Language Query
+
+```http
+POST /api/query
+Content-Type: application/json
+```
+
+Example request:
+
+```json
+{
+  "question": "How many tickets are currently open?"
+}
+```
+
+The response contains:
+
+* Query result rows
+* Generated SQL
+* Explanation
+* Whether the LLM was used
+
+### Anomaly Detection
+
+All data:
+
+```http
+GET /api/anomalies
+```
+
+This week:
+
+```http
+GET /api/anomalies?period=week
+```
+
+This month:
+
+```http
+GET /api/anomalies?period=month
+```
+
+The anomaly endpoint checks:
+
+1. Resolution-time outliers using the IQR method.
+2. Unresolved High/Critical tickets older than 24 hours.
+
+For `week` and `month`, the application calculates the period relative to the **latest timestamp in the supplied dataset**.
+
+This is important because the supplied dataset is historical and should not be compared against the evaluator's current calendar date.
+
+## Anomaly Detection
+
+Resolution-time anomalies are calculated using the standard IQR rule:
+
+```text
+IQR = Q3 - Q1
+
+Upper threshold = Q3 + 1.5 × IQR
+```
+
+Tickets with resolution times above the upper threshold are considered resolution-time outliers.
+
+The application also identifies tickets that satisfy:
+
+```text
+priority = High OR Critical
+AND
+status != Resolved
+AND
+age > 24 hours
+```
+
+The anomaly calculations are deterministic and do not depend on the LLM.
+
+## Example Questions
+
+The web UI includes the assessment's example questions:
+
+```text
+How many tickets are currently open?
+```
+
+```text
+Which agent resolved the most tickets this month?
+```
+
+```text
+Show me all Critical tickets not resolved within 12 hours.
+```
+
+```text
+What is the average customer rating for Technical category tickets?
+```
+
+```text
+Are there any anomalies in resolution times this week?
+```
+
+Additional supported questions include:
+
+```text
+How many Critical tickets are unresolved?
+```
+
+```text
+Which agent has the lowest average customer rating?
+```
+
+```text
+Show all Open Billing tickets.
+```
+
+```text
+What is the average response time for High priority tickets?
+```
+
+```text
+How many tickets were created in March 2024?
+```
+
+## Dataset Validation Results
+
+The following values were calculated from the supplied CSV and can be used to verify the application:
+
+| Check                               |      Result |
+| ----------------------------------- | ----------: |
+| Total tickets                       |         500 |
+| Currently Open                      |         111 |
+| Critical and not Resolved           |          31 |
+| Average Technical customer rating   |        3.74 |
+| Overall IQR resolution threshold    | 48.15 hours |
+| Overall resolution-time outliers    |          21 |
+| Most resolved tickets in March 2024 | AGT-01 (16) |
+
+The latest ticket timestamp in the supplied dataset is in **March 2024**.
+
+Therefore, phrases such as:
+
+```text
+this week
+```
+
+and
+
+```text
+this month
+```
+
+are interpreted relative to the dataset's latest timestamp rather than the real-world date on which the application is executed.
+
+## LLM Prompt and SQL Safety
+
+The LLM receives:
+
+* Database schema
+* Column information
+* Dataset's latest timestamp
+* User's natural-language question
+
+It is instructed to return only structured JSON containing SQL and an explanation.
+
+Before SQL execution, the application validates the generated query.
+
+The following are rejected:
+
+* Empty SQL
+* Multiple SQL statements
+* `INSERT`
+* `UPDATE`
+* `DELETE`
+* `DROP`
+* `ALTER`
+* `CREATE`
+* `TRUNCATE`
+* Database administration commands
+* Queries that do not begin with `SELECT` or `WITH`
+* Queries that do not reference `support_tickets`
+
+API queries use a read-only SQLite connection to prevent accidental data modification.
+
+## Fallback Query Handling
+
+If Ollama is unavailable, the application provides a small deterministic fallback for common assessment demonstration questions.
+
+This fallback is only a resilience mechanism.
+
+When Ollama is available, normal natural-language questions are processed through the local LLM.
+
+## Running the Assessment Walkthrough
+
+After starting the application and ensuring Ollama is running, test the following questions:
+
+### 1. Open Tickets
+
+```text
+How many tickets are currently open?
+```
+
+### 2. Top Agent
+
+```text
+Which agent resolved the most tickets this month?
+```
+
+### 3. Critical Tickets
+
+```text
+Show me all Critical tickets not resolved within 12 hours.
+```
+
+### 4. Technical Rating
+
+```text
+What is the average customer rating for Technical category tickets?
+```
+
+### 5. Resolution Anomalies
+
+```text
+Are there any anomalies in resolution times this week?
+```
+
+The UI also provides access to:
+
+```text
+/api/health
+/api/query
+/api/anomalies
+```
+
+and the FastAPI documentation at:
+
+```text
+/docs
+```
 
 ## Testing
 
-Run:
+Run the automated test suite:
 
 ```bash
 pytest -q
 ```
 
-The included tests cover:
+The tests cover:
 
-- 500-row ingestion and health endpoint
-- all-data and week-based anomaly endpoints
-- the NL query endpoint without requiring Ollama during automated testing
-- the server-rendered UI
-- invalid anomaly-period and input validation responses
+* 500-row CSV ingestion
+* Health endpoint
+* Dataset validation
+* All-data anomaly detection
+* Week-based anomaly detection
+* Natural-language query endpoint
+* Server-rendered web UI
+* Invalid anomaly period handling
+* Input validation
+* Query execution without requiring Ollama during automated tests
 
-## Known limitations
+## One-Command Start
 
-- Natural-language accuracy depends on the local LLM model.
-- Very ambiguous questions may need to be rephrased.
-- The current database is designed for the supplied assessment dataset rather than large production workloads.
-- Anomaly detection uses the dataset's latest timestamp as the reference point because the supplied data is historical.
+After the initial setup and Ollama model installation, the application can be started with:
 
-## Assessment alignment
-
-| Requirement | Implementation |
-|---|---|
-| CSV ingestion | `app/db.py` loads and validates the supplied CSV into SQLite |
-| Natural-language questions | `app/llm.py` uses Ollama to translate questions into SQL |
-| Anomaly detection | `app/anomaly.py` implements IQR outliers and unresolved High/Critical >24h |
-| REST API | `/api/health`, `/api/query`, `/api/anomalies` |
-| Minimal UI | Server-rendered HTML at `/` |
-| LLM | Local Ollama, default `llama3.2:3b` |
-| Zero-cost execution | No paid API or hosted service required |
-| Single start command | `uvicorn app.main:app --reload` after setup |
-| Documentation | This README |
-| Dependencies | `requirements.txt` |
-
-## Submission
-
-1. Create a new public or recruiter-accessible GitHub repository.
-2. Copy the project files into the repository.
-3. Do **not** commit `.venv`, `data/support_tickets.db`, `.env`, or other local files ignored by `.gitignore`.
-4. Run the tests and start the application locally before pushing.
-5. Open the UI and test the sample questions with Ollama running.
-6. Push the repository to GitHub.
-7. Email the repository link to `RajathKumar@dotmappers.in`.
-8. Use the subject line:
-
-```text
-[AI Engineer Assessment] — Atul Kumar
+```bash
+uvicorn app.main:app --reload
 ```
 
-The assessment says a 30-minute architecture walkthrough will follow submission, so be ready to explain the choices above and what you would change for a larger production system.
+This starts both the REST API and the web UI.
+
+## API Documentation
+
+FastAPI automatically provides interactive API documentation at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+The alternative ReDoc documentation is available at:
+
+```text
+http://127.0.0.1:8000/redoc
+```
+
+## Known Limitations
+
+* Natural-language query accuracy depends on the selected local LLM.
+* Highly ambiguous questions may require rephrasing.
+* The SQLite implementation is intended for the supplied assessment dataset rather than large production workloads.
+* The supplied dataset is historical, so relative periods use the dataset's latest timestamp.
+* Ollama must be installed locally for full LLM functionality.
+* The fallback query system only covers a limited set of common demonstration questions.
+
+## Summary
+
+This implementation combines:
+
+```text
+Python
+   +
+FastAPI
+   +
+SQLite
+   +
+Ollama
+   +
+Natural Language → Safe SQL
+   +
+Deterministic IQR Anomaly Detection
+   +
+Server-rendered Web UI
+```
+
+The project is designed to satisfy the assessment requirements while remaining **local, zero-cost, lightweight, testable, and easy to run**.
