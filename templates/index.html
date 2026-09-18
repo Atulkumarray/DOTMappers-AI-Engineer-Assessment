@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Support Ticket Analyst</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="container">
+  <header class="header">
+    <div>
+      <p class="eyebrow">DOTMappers · AI Engineer Assessment</p>
+      <h1>AI Support Ticket Analyst</h1>
+      <p class="subtitle">Ask questions about support tickets and inspect anomalies.</p>
+    </div>
+    <div class="links"><a href="/api/health">Health</a><a href="/docs">API Docs</a></div>
+  </header>
+
+  {% if error %}
+  <section class="card error"><strong>Error:</strong> {{ error }}</section>
+  {% endif %}
+
+  <section class="card">
+    <h2>Natural-language query</h2>
+    <form method="get" action="/">
+      <textarea name="question" rows="3" placeholder="e.g. How many tickets are currently open?">{{ question }}</textarea>
+      <button type="submit">Ask AI</button>
+    </form>
+    <div class="examples">
+      <a href="/?question=How%20many%20tickets%20are%20currently%20open%3F">Open tickets</a>
+      <a href="/?question=Which%20agent%20resolved%20the%20most%20tickets%20this%20month%3F">Top agent this month</a>
+      <a href="/?question=Show%20me%20all%20Critical%20tickets%20not%20resolved%20within%2012%20hours.">Critical &gt; 12h</a>
+      <a href="/?question=What%20is%20the%20average%20customer%20rating%20for%20Technical%20category%20tickets%3F">Technical rating</a>
+      <a href="/?question=Are%20there%20any%20anomalies%20in%20resolution%20times%20this%20week%3F">Anomalies this week</a>
+    </div>
+  </section>
+
+  {% if query_result %}
+  <section class="card">
+    <div class="result-head">
+      <h2>Query result</h2>
+      <span class="badge {% if not query_result.llm_used %}warn{% endif %}">
+        {% if query_result.llm_used %}LLM{% else %}Fallback{% endif %}
+      </span>
+    </div>
+    <p>{{ query_result.explanation }}</p>
+    {% if query_result.sql %}<pre>SQL: {{ query_result.sql }}</pre>{% endif %}
+    {% if query_result.rows %}
+    <div class="table-scroll"><table>
+      <thead><tr>{% for key in query_result.rows[0].keys() %}<th>{{ key }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in query_result.rows %}<tr>{% for key in query_result.rows[0].keys() %}<td>{{ row[key] if row[key] is not none else "NULL" }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p>No rows matched the query.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <div class="result-head">
+      <div>
+        <h2>Anomaly detection</h2>
+        <p>Resolution-time outliers use the IQR rule. High/Critical unresolved tickets are checked against a 24-hour age threshold.</p>
+      </div>
+      <div class="period-links">
+        <a href="/?period=all">All data</a>
+        <a href="/?period=week">This week</a>
+        <a href="/?period=month">This month</a>
+      </div>
+    </div>
+
+    {% if anomaly_result %}
+      <p class="muted">Window: {{ anomaly_result.window_start or "entire dataset" }}{% if anomaly_result.window_end %} to {{ anomaly_result.window_end }}{% endif %}</p>
+      <h3>Resolution-time outliers <span class="count">{{ anomaly_result.resolution_time_outliers.tickets|length }}</span></h3>
+      <p>Upper IQR threshold: {{ anomaly_result.resolution_time_outliers.threshold_hours }} hours.</p>
+      {% if anomaly_result.resolution_time_outliers.tickets %}
+      <div class="table-scroll"><table>
+        <thead><tr><th>Ticket</th><th>Created</th><th>Priority</th><th>Status</th><th>Resolution (h)</th><th>Agent</th></tr></thead>
+        <tbody>{% for row in anomaly_result.resolution_time_outliers.tickets %}<tr><td>{{ row.ticket_id }}</td><td>{{ row.created_at }}</td><td>{{ row.priority }}</td><td>{{ row.status }}</td><td>{{ row.resolution_time_hrs }}</td><td>{{ row.agent_id }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<p>No resolution-time outliers found in this period.</p>{% endif %}
+
+      <h3>Unresolved High/Critical tickets older than 24 hours <span class="count">{{ anomaly_result.unresolved_high_priority_over_24h.tickets|length }}</span></h3>
+      {% if anomaly_result.unresolved_high_priority_over_24h.tickets %}
+      <div class="table-scroll"><table>
+        <thead><tr><th>Ticket</th><th>Created</th><th>Priority</th><th>Status</th><th>Age (h)</th><th>Agent</th></tr></thead>
+        <tbody>{% for row in anomaly_result.unresolved_high_priority_over_24h.tickets %}<tr><td>{{ row.ticket_id }}</td><td>{{ row.created_at }}</td><td>{{ row.priority }}</td><td>{{ row.status }}</td><td>{{ row.age_hours }}</td><td>{{ row.agent_id }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<p>No unresolved High/Critical tickets older than 24 hours found in this period.</p>{% endif %}
+    {% else %}
+      <p class="muted">Choose a period above to run the anomaly report.</p>
+    {% endif %}
+  </section>
+</main>
+</body>
+</html>
